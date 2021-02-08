@@ -1,7 +1,12 @@
 {
-    "server": "",
-    "db": "",
-    "ns": "",
-    "username": "",
-    "password": ""
+    "supplier_id": 0,
+    "sql_path": "sql",
+    "csv_path": "csv",
+    "server": "server",
+    "db": "db",
+    "ns": "dbo",
+    "username": "login",
+    "password": "password",
+    "file_encoding": "utf-8",
+    "file_separators": "|"
 }
