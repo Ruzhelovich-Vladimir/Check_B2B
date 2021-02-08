@@ -506,5 +506,6 @@ venv/
 
 *.json
 *.csv
+*.sql
 
 
