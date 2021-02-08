@@ -1,3 +1,4 @@
+from os import path
 from requests import Session
 from urllib.parse import quote
 from bs4 import BeautifulSoup
@@ -8,12 +9,13 @@ USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Ge
 AUTH_FILENAME = 'auth.json'
 REQUESTS_FILENAME = 'requests.json'
 
+
 class Request:
 
     def __init__(self, auth, requests):
 
-        self.result=[]
-        self.response={}
+        self.result = []
+        self.response = {}
 
         self.auth = auth
         self.base_url = requests['base_url']
@@ -33,39 +35,63 @@ class Request:
         self.response = self.__session.get(
             self.base_url, headers={'UserAgent': USER_AGENT})
 
-    def execute_requests(self,requests): 
-        for __request in requests:
-             #Выполняем Post запрос
-            self.postRequest(__request)
-            self.save_to_csv(__request['filename'],self.response.text)
+    def execute_requests(self, requests):
+        for request in requests:
 
-    def save_to_csv(self,filename,html):
+            query_filename_path = path.join(
+                self.auth['sql_path'], request['query_filename'])
+            # Считываем sql-запрос
+            with open(query_filename_path, 'r') as f:
+                query = f.read()
+                query = query.replace(
+                    '@supplier_id', f'{self.auth["supplier_id"]}')
+                query = query.replace('\n', ' ')
+                request['query'] = query
 
+            # Выполняем Post запрос
+            self.postRequest(request)
+            self.save_to_csv(request['filename'], self.response.text)
+
+    @staticmethod
+    def convert_value(value):
+        result = value.replace('.', ',') if value.count(
+            '.') < 2 and value.replace(".", "").isdigit() else value
+        for char in ('\t', '\r', '\n'):
+            result = result.replace(char, " ")
+
+        return result
+
+    def save_to_csv(self, filename, html):
+
+        # ; \t, \r, \n
         soup = BeautifulSoup(html, "lxml")
-        rows = soup.findAll("tr")
 
-        with open(filename, "w", newline="") as f:
+        rows = soup.findAll("tr")
+        filename_path = path.join(self.auth['csv_path'], filename)
+        with open(filename_path, "w", newline="", encoding=self.auth['file_encoding']) as f:
             for cell in rows:
-                elem = cell.get_text(";")
-                # print(elem)
+
+                elem = self.auth['file_separators'].join(
+                    [self.convert_value(text.get_text()) for text in cell])
+                # elem = cell.get_text(self.auth['file_separators'])
                 f.write(elem+'\n')
 
-        
     @property
     def __get_token(self):
         """Получаем токен формы
         Returns:
             [string]: [Токен формы]
         """
-        result=''
+        result = ''
         try:
-            selector_result = BeautifulSoup(self.response.text, 'lxml').select('input[name="token"]')
+            selector_result = BeautifulSoup(
+                self.response.text, 'lxml').select('input[name="token"]')
         except:
             return result
         result = selector_result[len(selector_result)-1].attrs['value']
         return result
 
-    def __preparation(self,url):
+    def __preparation(self, url):
         """Подготавливаем запрос
 
         Args:
@@ -88,20 +114,22 @@ class Request:
         })
 
     def postRequest(self, request):
-        
+
         server = self.auth['server']
         username = self.auth['username']
         password = self.auth['password']
         db = self.auth['db']
         ns = self.auth['ns']
-        
-        #Получаем url
-        query_url= quote(request['query'])
+
+        # Получаем url
+        query_url = quote(request['query'])
         url = f'{self.base_url}?mssql={server}&username={username}&db={db}&ns={ns}&sql={query_url}'
-        #Заполняем атрибуты данные
+        # Заполняем атрибуты данные
         request['data'] = {}
-        request['data']['query'] = request['query']  #Заполняем атрибут запроса
-        request['data']['token'] = self.__get_token     #Получаем текущий токен формы или пустую строку
+        # Заполняем атрибут запроса
+        request['data']['query'] = request['query']
+        # Получаем текущий токен формы или пустую строку
+        request['data']['token'] = self.__get_token
         request['data']['limit'] = ''
         request['data']['auth[server]'] = server
         request['data']['auth[username]'] = username
@@ -110,7 +138,7 @@ class Request:
         request['data']['auth[ns]'] = ns
 
         self.__preparation(url)
-        #Выполняем запрос
+        # Выполняем запрос
         self.response = self.__session.post(
             url, data=request['data'])
 
@@ -123,12 +151,12 @@ class Request:
 
 if __name__ == '__main__':
 
-    #Считываем данные авторизации
-    with open(AUTH_FILENAME,'r') as f:
+    # Считываем данные авторизации
+    with open(AUTH_FILENAME, 'r') as f:
         AUTH_DATA = json.load(f)
 
-    #Считываем данные авторизации
-    with open(REQUESTS_FILENAME,'r') as f:
+    # Считываем данные авторизации
+    with open(REQUESTS_FILENAME, 'r') as f:
         REQUESTS_DATA = json.load(f)
 
-    Request(auth=AUTH_DATA,requests=REQUESTS_DATA)
+    Request(auth=AUTH_DATA, requests=REQUESTS_DATA)
