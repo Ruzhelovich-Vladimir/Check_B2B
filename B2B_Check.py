@@ -1,13 +1,14 @@
 from os import path
+import json
 from requests import Session
 from urllib.parse import quote
 from bs4 import BeautifulSoup
 
-import json
 
 USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 YaBrowser/20.11.3.268 (beta) Yowser/2.5 Safari/537.36'
-AUTH_FILENAME = 'auth.json'
-REQUESTS_FILENAME = 'requests.json'
+ROOT_DIR = path.dirname(path.abspath(__file__))
+AUTH_FILENAME = path.join(ROOT_DIR, 'auth.json')
+REQUESTS_FILENAME = path.join(ROOT_DIR, 'requests.json')
 
 
 class Request:
@@ -39,7 +40,7 @@ class Request:
         for request in requests:
 
             query_filename_path = path.join(
-                self.auth['sql_path'], request['query_filename'])
+                ROOT_DIR, self.auth['sql_path'], request['query_filename'])
             # Считываем sql-запрос
             with open(query_filename_path, 'r') as f:
                 query = f.read()
@@ -67,10 +68,9 @@ class Request:
         soup = BeautifulSoup(html, "lxml")
 
         rows = soup.findAll("tr")
-        filename_path = path.join(self.auth['csv_path'], filename)
+        filename_path = path.join(ROOT_DIR, self.auth['csv_path'], filename)
         with open(filename_path, "w", newline="", encoding=self.auth['file_encoding']) as f:
             for cell in rows:
-
                 elem = self.auth['file_separators'].join(
                     [self.convert_value(text.get_text()) for text in cell])
                 # elem = cell.get_text(self.auth['file_separators'])
@@ -88,7 +88,10 @@ class Request:
                 self.response.text, 'lxml').select('input[name="token"]')
         except:
             return result
-        result = selector_result[len(selector_result)-1].attrs['value']
+        if selector_result:
+            result = selector_result[len(selector_result)-1].attrs['value']
+        else:
+            result = ''
         return result
 
     def __preparation(self, url):
@@ -146,7 +149,7 @@ class Request:
         # with open("result.html", "w", encoding="utf-8") as f:
         #     f.write(self.response.text)
 
-        # pass
+        pass
 
 
 if __name__ == '__main__':
