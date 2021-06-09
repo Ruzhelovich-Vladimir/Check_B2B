@@ -1,15 +1,16 @@
+import os.path
 from os import path
-import json
 from requests import Session
 from urllib.parse import quote
 from bs4 import BeautifulSoup
+import csv
+
+import log.log as log
+from config.config import settings
 
 
 USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 YaBrowser/20.11.3.268 (beta) Yowser/2.5 Safari/537.36'
 ROOT_DIR = path.dirname(path.abspath(__file__))
-AUTH_FILENAME = path.join(ROOT_DIR, 'auth.json')
-REQUESTS_FILENAME = path.join(ROOT_DIR, 'requests.json')
-
 
 class Request:
 
@@ -19,44 +20,48 @@ class Request:
         self.response = {}
 
         self.auth = auth
-        self.base_url = requests['base_url']
-
+        self.base_url = auth['base_url']
+        self.supplier_name = auth['supplier_name']
         # Создаём сессию
         self.__session = Session()
         # Получае куки в заголовке
-        self.__get_cookie
+        self.__get_cookie()
         # Выполняем запросы
         if self.response.status_code == 200:
-            self.execute_requests(requests['requests'])
+            self.execute_requests(requests)
         else:
-            print(f'Ошибка:{self.response["status_code"]}')
+            logger.error(f'Ошибка:{self.response.status_code}')
 
-    @property
     def __get_cookie(self):
         self.response = self.__session.get(
             self.base_url, headers={'UserAgent': USER_AGENT})
 
     def execute_requests(self, requests):
         for request in requests:
-
+            logger.info(f'   {request["query_filename"]}')
             query_filename_path = path.join(
-                ROOT_DIR, self.auth['sql_path'], request['query_filename'])
+                ROOT_DIR, 'sql', request['query_filename'])
             # Считываем sql-запрос
-            with open(query_filename_path, 'r') as f:
-                query = f.read()
-                query = query.replace(
-                    '@supplier_id', f'{self.auth["supplier_id"]}')
-                query = query.replace('\n', ' ')
-                request['query'] = query
+            if os.path.isfile(query_filename_path):
+                with open(query_filename_path, mode='r') as f:
+                    query = f.read()
+                    query = query.replace(
+                        '@supplier_id', f'{self.auth["supplier_id"]}')
+                    query = query.replace('\n', ' ')
+                    request['query'] = query
+            else:
+                logger.warning(f'Файл запроса отсудствует:{query_filename_path} - пропускаем')
+                continue
 
             # Выполняем Post запрос
             self.postRequest(request)
-            self.save_to_csv(request['filename'], self.response.text)
+            self.save_to_csv(f'{self.supplier_name}_{request["filename"]}', self.response.text)
 
     @staticmethod
     def convert_value(value):
         result = value.replace('.', ',') if value.count(
             '.') < 2 and value.replace(".", "").isdigit() else value
+        # Удаляю символ табуляции, перевод корректы и строки
         for char in ('\t', '\r', '\n'):
             result = result.replace(char, " ")
 
@@ -68,13 +73,11 @@ class Request:
         soup = BeautifulSoup(html, "lxml")
 
         rows = soup.findAll("tr")
-        filename_path = path.join(ROOT_DIR, self.auth['csv_path'], filename)
-        with open(filename_path, "w", newline="", encoding=self.auth['file_encoding']) as f:
+        filename_path = path.join(ROOT_DIR, 'csv_report', filename)
+        with open(filename_path, "w", newline="", encoding=self.auth['file_encoding']) as csv_file:
+            writer = csv.writer(csv_file, delimiter=self.auth['file_separators'])
             for cell in rows:
-                elem = self.auth['file_separators'].join(
-                    [self.convert_value(text.get_text()) for text in cell])
-                # elem = cell.get_text(self.auth['file_separators'])
-                f.write(elem+'\n')
+                writer.writerow([self.convert_value(text.get_text()) for text in cell])
 
     @property
     def __get_token(self):
@@ -119,7 +122,7 @@ class Request:
     def postRequest(self, request):
 
         server = self.auth['server']
-        username = self.auth['username']
+        username = self.auth['login']
         password = self.auth['password']
         db = self.auth['db']
         ns = self.auth['ns']
@@ -145,21 +148,10 @@ class Request:
         self.response = self.__session.post(
             url, data=request['data'])
 
-        # # Вход успешно воспроизведен и мы сохраняем страницу в html файл
-        # with open("result.html", "w", encoding="utf-8") as f:
-        #     f.write(self.response.text)
-
-        pass
-
-
 if __name__ == '__main__':
 
-    # Считываем данные авторизации
-    with open(AUTH_FILENAME, 'r') as f:
-        AUTH_DATA = json.load(f)
-
-    # Считываем данные авторизации
-    with open(REQUESTS_FILENAME, 'r') as f:
-        REQUESTS_DATA = json.load(f)
-
-    Request(auth=AUTH_DATA, requests=REQUESTS_DATA)
+    logger = log.init()
+    REQUESTS_DATA = settings['REQUEST_PLAN']
+    for AUTH_DATA in settings.CONTROL_SUPPLIER:
+        logger.info(f'Обработка поставщика: {AUTH_DATA["supplier_name"]}')
+        Request(auth=AUTH_DATA, requests=REQUESTS_DATA)

@@ -1,0 +1,29 @@
+LOG_FILE = "check_b2b.log"
+
+[[REQUEST_PLAN]]
+filename = "Warehouse.csv"
+query_filename = "Warehouse.sql"
+
+[[REQUEST_PLAN]]
+filename = "Products.csv"
+query_filename = "Products.sql"
+
+[[REQUEST_PLAN]]
+filename = "ProductsAttributes.csv"
+query_filename = "ProductsAttributes.sql"
+
+[[REQUEST_PLAN]]
+filename = "productStocks.csv"
+query_filename = "productStocks.sql"
+
+[[REQUEST_PLAN]]
+filename = "Outlets.csv"
+query_filename = "Outlets.sql"
+
+[[REQUEST_PLAN]]
+filename = "Errors.csv"
+query_filename = "Errors.sql"
+
+[[REQUEST_PLAN]]
+filename = "Pricing_Promo.csv"
+query_filename = "Pricing_Promo.sql"
