@@ -1,0 +1,8 @@
+[06.15.2021 15:12:53] - INFO     - Обработка поставщика: ВиАС(Mars) (ТЕСТ)
+[06.15.2021 15:12:54] - INFO     -    Warehouse.sql
+[06.15.2021 15:12:54] - INFO     -    Products.sql
+[06.15.2021 15:12:56] - INFO     -    ProductsAttributes.sql
+[06.15.2021 15:12:58] - INFO     -    productStocks.sql
+[06.15.2021 15:13:01] - INFO     -    Outlets.sql
+[06.15.2021 15:13:20] - INFO     -    Errors.sql
+[06.15.2021 15:13:40] - INFO     -    Pricing_Promo.sql
